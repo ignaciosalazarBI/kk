@@ -19,7 +19,6 @@ st.markdown("""
 .hero {padding:20px 24px;border-radius:20px;background:linear-gradient(135deg,#f8fafc,#eef2ff);border:1px solid #e5e7eb;margin-bottom:16px}
 .demo-banner {border:1px solid #f59e0b;background:#fffbeb;border-radius:14px;padding:12px 15px;margin:0 0 18px;line-height:1.45;font-size:.94rem}
 .module-card {border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:#fff;min-height:100px}
-.quick-card {border:1px solid #dbeafe;background:#f8fbff;border-radius:18px;padding:18px 20px;margin:14px 0}
 @media (max-width:768px){.block-container{padding-top:2.8rem;padding-left:1rem;padding-right:1rem}.demo-banner{font-size:.88rem;padding:10px 12px}}
 </style>
 """, unsafe_allow_html=True)
@@ -110,7 +109,7 @@ if not st.session_state.get("visit_logged"):
     event("visita")
     st.session_state.visit_logged = True
 
-MODULES = ["Finanzas", "Cobranza", "SII", "Marketing", "Legal", "Inventario", "IA"]
+MODULES = ["Finanzas", "Cobranza", "SII", "Marketing", "Legal", "Inventario", "Conciliación bancaria", "IA"]
 MODULE_DESCRIPTIONS = {
     "Finanzas": "Caja, P&L, márgenes, presupuesto y forecast.",
     "Cobranza": "Facturas vencidas, aging, prioridades y recordatorios.",
@@ -118,6 +117,7 @@ MODULE_DESCRIPTIONS = {
     "Marketing": "Campañas, leads, conversiones, costo por lead y ROI.",
     "Legal": "Contratos, vencimientos, cláusulas y alertas de riesgo.",
     "Inventario": "Stock, rotación, compras, quiebres y exceso de inventario.",
+    "Conciliación bancaria": "Importa cartolas CSV/Excel, sugiere coincidencias y detecta diferencias para revisión.",
     "IA": "Una capa transversal que analiza todo y recomienda qué hacer hoy.",
 }
 
@@ -129,20 +129,20 @@ ventas = pd.DataFrame([
 ])
 KPIS={"ventas":3_100_000,"margen":2_040_000,"margen_pct":.658,"caja":-190_000,"por_cobrar":float(ventas.total.sum())}
 
-menu_options=["🏠 Inicio","💬 Diagnóstico rápido","🚀 Participar en la Beta","🧩 Módulos","💵 Caja","🚨 Alertas","📑 Legal","⭐ Feedback Beta","🔒 Privacidad"]
+menu_options=["🏠 Inicio","💬 Diagnóstico rápido","🚀 Participar en la Beta","🧩 Módulos","💵 Caja","🚨 Alertas","🏦 Conciliación bancaria","📑 Legal","⭐ Feedback Beta","🔒 Privacidad"]
 start=st.query_params.get("start","")
-default_map={"diagnostico":1,"beta":2,"modulos":3,"feedback":7,"privacidad":8}
+default_map={"diagnostico":1,"beta":2,"modulos":3,"conciliacion":6,"feedback":8,"privacidad":9}
 menu=st.sidebar.radio("Control Pyme",menu_options,index=default_map.get(start,0))
 st.sidebar.caption("🧪 Beta pública · Chile")
 st.sidebar.info("Primero queremos entender qué necesita tu negocio. Puedes recorrer la demo sin entregar datos personales.")
 
-page_slug={menu_options[i]:s for i,s in enumerate(["inicio","diagnostico","beta","modulos","caja","alertas","legal","feedback","privacidad"])}[menu]
+page_slug={menu_options[i]:s for i,s in enumerate(["inicio","diagnostico","beta","modulos","caja","alertas","conciliacion","legal","feedback","privacidad"])}[menu]
 page_event(page_slug)
 
 st.markdown('<div class="demo-banner"><b>🧪 DEMO PÚBLICA · DATOS FICTICIOS</b><br>Explora libremente. No ingreses claves, datos bancarios, documentos reales ni información sensible.</div>',unsafe_allow_html=True)
 
 if menu=="🏠 Inicio":
-    st.markdown('<div class="hero"><h2 style="margin:0">Una plataforma para gestionar y hacer crecer tu negocio</h2><div style="color:#667085;margin-top:6px">Finanzas, Cobranza, SII, Marketing, Legal, Inventario e IA en una sola visión.</div></div>',unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h2 style="margin:0">Una plataforma para gestionar y hacer crecer tu negocio</h2><div style="color:#667085;margin-top:6px">Finanzas, Cobranza, SII, Marketing, Legal, Inventario, Conciliación bancaria e IA en una sola visión.</div></div>',unsafe_allow_html=True)
     st.subheader("¿Qué áreas te gustaría controlar desde un solo lugar?")
     st.caption("Marca todas las que te interesen. No necesitas dejar correo.")
     with st.form("module_interest_home"):
@@ -155,7 +155,6 @@ if menu=="🏠 Inicio":
             for module in chosen:
                 event(f"modulo_{slug(module)}")
             event("modulos_interes_guardados")
-            st.session_state.modules_selected = chosen
             st.success("Gracias. Ya sabemos qué áreas te interesan más.")
             st.link_button("Ver cómo funcionaría →", "?start=modulos", width="stretch")
 
@@ -171,7 +170,7 @@ if menu=="🏠 Inicio":
 elif menu=="💬 Diagnóstico rápido":
     st.title("💬 Diagnóstico rápido")
     st.caption("Menos de 1 minuto. El contacto es opcional.")
-    options=["Caja y liquidez","Cobranza","SII / impuestos","Marketing y ventas","Saber mi rentabilidad","Inventario","Contratos/Legal","Orden general del negocio","Otro"]
+    options=["Caja y liquidez","Cobranza","SII / impuestos","Marketing y ventas","Saber mi rentabilidad","Inventario","Conciliación bancaria","Contratos/Legal","Orden general del negocio","Otro"]
     with st.form("diag_rapido"):
         dolor=st.selectbox("1. ¿Qué te preocupa más hoy?",options)
         trabajadores=st.selectbox("2. ¿Cuántas personas trabajan en el negocio?",["1","2–5","6–10","11–25","26–50","Más de 50"])
@@ -234,7 +233,7 @@ elif menu=="🧩 Módulos":
     for i,module in enumerate(MODULES):
         with cols[i%2]:
             st.markdown(f'<div class="module-card"><b>{module}</b><br>{MODULE_DESCRIPTIONS[module]}</div>',unsafe_allow_html=True)
-    st.info("🤖 La IA será transversal: combinará Finanzas, Cobranza, SII, Marketing, Legal e Inventario para recomendar acciones concretas.")
+    st.info("🤖 La IA será transversal: combinará Finanzas, Cobranza, SII, Marketing, Legal, Inventario y Conciliación bancaria para recomendar acciones concretas.")
     st.link_button("⭐ Decir qué construir primero","?start=feedback",type="primary",width="stretch")
 
 elif menu=="💵 Caja":
@@ -248,6 +247,23 @@ elif menu=="🚨 Alertas":
     x=ventas.copy(); x["Días vencido"]=(TODAY-x.vence).dt.days
     st.dataframe(x[["cliente","total","vence","Días vencido","margen"]],hide_index=True,width="stretch")
     st.info("Próxima capa: recordatorios, promesas de pago y mensajes preparados automáticamente.")
+
+elif menu=="🏦 Conciliación bancaria":
+    st.title("🏦 Conciliación bancaria automática")
+    st.caption("Vista conceptual del MVP. En esta Beta no cargues cartolas reales.")
+    a,b,c=st.columns(3)
+    a.metric("Movimientos banco","27","Ejemplo ficticio")
+    b.metric("Conciliados automáticamente","24","89%")
+    c.metric("Requieren revisión","3","$330 mil")
+    demo=pd.DataFrame([
+        {"Fecha":"18-08-2026","Movimiento":"Abono Cliente Andes","Banco":850000,"Sistema":850000,"Estado":"✅ Conciliado"},
+        {"Fecha":"18-08-2026","Movimiento":"Pago Proveedor A","Banco":-320000,"Sistema":-320000,"Estado":"✅ Conciliado"},
+        {"Fecha":"19-08-2026","Movimiento":"Transferencia recibida","Banco":330000,"Sistema":0,"Estado":"⚠️ Revisar"},
+    ])
+    st.dataframe(demo,hide_index=True,width="stretch")
+    st.info("MVP propuesto: importar CSV/Excel del banco → sugerir coincidencias por fecha, monto y referencia → confirmar excepciones. La conexión bancaria directa vendría después de validar demanda.")
+    st.info("🤖 **IA:** “Detecté un abono de $330 mil sin documento asociado. Revisa si corresponde a una factura pendiente antes de registrarlo.”")
+    st.link_button("⭐ ¿Priorizarías este módulo?","?start=feedback",type="primary",width="stretch")
 
 elif menu=="📑 Legal":
     st.title("📑 Legal")
@@ -286,6 +302,8 @@ else:
 
 **Qué no necesitamos:** claves, datos bancarios, cartolas, RUT personales, contratos reales ni documentos sensibles.
 
+**Conciliación bancaria en esta Beta:** la vista es demostrativa. No cargues cartolas reales todavía.
+
 **Uso:** validar el producto, priorizar módulos y contactarte únicamente cuando hayas dejado un medio de contacto con consentimiento.
 
 **Eliminación:** puedes solicitar que eliminemos tus datos por el mismo canal por el que recibiste la invitación.
@@ -293,4 +311,4 @@ else:
     st.info("Puedes recorrer toda la demo sin entregar datos personales.")
 
 st.divider()
-st.caption("Beta · Finanzas · Cobranza · SII · Marketing · Legal · Inventario · IA · 🧪 Datos ficticios")
+st.caption("Beta · Finanzas · Cobranza · SII · Marketing · Legal · Inventario · Conciliación bancaria · IA · 🧪 Datos ficticios")
