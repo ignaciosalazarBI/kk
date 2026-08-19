@@ -14,7 +14,7 @@ st.set_page_config(page_title="Control Pyme Beta", page_icon="📊", layout="wid
 st.markdown(
     """
 <style>
-.block-container {padding-top:1.1rem; padding-bottom:3rem; max-width:1400px}
+.block-container {padding-top:3.4rem; padding-bottom:3rem; max-width:1400px}
 [data-testid="stSidebar"] {min-width:235px; max-width:235px}
 .kpi {border:1px solid #e7e7e7;border-radius:16px;padding:18px;background:white;min-height:118px;box-shadow:0 2px 10px rgba(0,0,0,.035)}
 .kpi .label {font-size:.83rem;color:#68707a;margin-bottom:7px}
@@ -27,7 +27,11 @@ st.markdown(
 .cta p {margin:0;color:#dbeafe}
 .step {border:1px solid #e5e7eb;border-radius:16px;padding:16px;min-height:138px;background:#fff}
 .step b {font-size:1.02rem}
-.demo-banner {border:1px solid #f59e0b;background:#fffbeb;border-radius:14px;padding:12px 15px;margin-bottom:14px}
+.demo-banner {border:1px solid #f59e0b;background:#fffbeb;border-radius:14px;padding:12px 15px;margin:0 0 18px 0;line-height:1.45;font-size:.94rem}
+@media (max-width: 768px) {
+  .block-container {padding-top:3rem; padding-left:1rem; padding-right:1rem}
+  .demo-banner {font-size:.88rem;padding:10px 12px}
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -200,8 +204,8 @@ st.sidebar.caption("🧪 Beta pública · Chile")
 st.sidebar.info("¿Primera vez? Parte por **Diagnóstico Pyme**. No necesitas conectar bancos ni subir documentos.")
 
 st.markdown(
-    '<div class="demo-banner"><b>🧪 DEMO PÚBLICA — DATOS FICTICIOS.</b> '
-    'Los montos, clientes y proveedores que ves son ejemplos. No ingreses claves, datos bancarios, documentos reales ni información sensible.</div>',
+    '<div class="demo-banner"><b>🧪 DEMO PÚBLICA · DATOS FICTICIOS</b><br>'
+    'Explora libremente. No ingreses claves, datos bancarios, documentos reales ni información sensible.</div>',
     unsafe_allow_html=True,
 )
 
@@ -293,7 +297,7 @@ if menu == "🏠 Inicio":
 elif menu == "💬 Diagnóstico Pyme":
     st.title("💬 Diagnóstico Pyme")
     st.caption("En 2–3 minutos queremos entender cómo administras tu negocio y mostrarte dónde Control Pyme puede ayudarte más.")
-    st.info("Solo pedimos información general. No ingreses RUT, claves, cuentas bancarias, saldos reales ni información confidencial.")
+    st.caption("🔒 Solo pedimos información general. No necesitamos RUT, claves, cuentas bancarias ni saldos reales.")
 
     with st.form("diagnostico"):
         c1, c2 = st.columns(2)
