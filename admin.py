@@ -7,7 +7,7 @@ import streamlit as st
 
 st.set_page_config(page_title="Control Pyme · Panel Beta", page_icon="🔐", layout="wide")
 st.title("🔐 Control Pyme · Panel Beta")
-st.caption("Validación comercial · contactos · embudo · comportamiento · feedback")
+st.caption("Validación comercial · embudo · módulos · comportamiento · feedback")
 
 
 def secret(name: str) -> str:
@@ -41,7 +41,8 @@ if "admin_attempts" not in st.session_state: st.session_state.admin_attempts=0
 if not st.session_state.admin_ok:
     if st.session_state.admin_attempts>=5: st.error("Demasiados intentos fallidos. Recarga la página."); st.stop()
     with st.form("login_admin"):
-        clave=st.text_input("Clave de administrador",type="password"); entrar=st.form_submit_button("Entrar",type="primary")
+        clave=st.text_input("Clave de administrador",type="password")
+        entrar=st.form_submit_button("Entrar",type="primary")
     if entrar:
         if hmac.compare_digest(clave,expected): st.session_state.admin_ok=True; st.session_state.admin_attempts=0; st.rerun()
         else: st.session_state.admin_attempts+=1; st.error("Clave incorrecta.")
@@ -59,9 +60,9 @@ leads,beta,feedback,eventos=[as_df(data,k) for k in ["leads","beta","feedback","
 
 frames=[]
 if not leads.empty:
-    frames.append(pd.DataFrame({"_id":leads["id"],"_entity":"lead","Fecha":leads["created_at"],"Origen registro":"Diagnóstico","Nombre":leads.get("nombre",""),"Empresa":leads.get("empresa",""),"Email":leads.get("email",""),"WhatsApp":leads.get("telefono",""),"Rubro":leads.get("rubro",""),"Necesidad":leads.get("dolor_principal",""),"Plan":"","Disposición pago":leads.get("disposicion_pago",""),"Estado":leads.get("estado","nuevo"),"Canal":leads.get("utm_source","direct"),"Campaña":leads.get("utm_campaign","")}))
+    frames.append(pd.DataFrame({"_id":leads["id"],"_entity":"lead","Fecha":leads["created_at"],"Origen":"Diagnóstico","Nombre":leads.get("nombre",""),"Empresa":leads.get("empresa",""),"Email":leads.get("email",""),"Necesidad":leads.get("dolor_principal",""),"Estado":leads.get("estado","nuevo"),"Canal":leads.get("utm_source","direct")}))
 if not beta.empty:
-    frames.append(pd.DataFrame({"_id":beta["id"],"_entity":"beta","Fecha":beta["created_at"],"Origen registro":"Interés Beta","Nombre":beta.get("nombre",""),"Empresa":beta.get("empresa",""),"Email":beta.get("email",""),"WhatsApp":beta.get("telefono",""),"Rubro":"","Necesidad":beta.get("motivo",""),"Plan":beta.get("plan_interes",""),"Disposición pago":"","Estado":beta.get("estado","nuevo"),"Canal":beta.get("utm_source","direct"),"Campaña":beta.get("utm_campaign","")}))
+    frames.append(pd.DataFrame({"_id":beta["id"],"_entity":"beta","Fecha":beta["created_at"],"Origen":"Interés Beta","Nombre":beta.get("nombre",""),"Empresa":beta.get("empresa",""),"Email":beta.get("email",""),"Necesidad":beta.get("motivo",""),"Estado":beta.get("estado","nuevo"),"Canal":beta.get("utm_source","direct")}))
 contacts=pd.concat(frames,ignore_index=True) if frames else pd.DataFrame()
 if not contacts.empty: contacts=contacts.sort_values("Fecha",ascending=False).reset_index(drop=True)
 unique_contacts=contacts["Email"].fillna("").astype(str).str.lower().replace("",pd.NA).nunique() if not contacts.empty else 0
@@ -75,53 +76,68 @@ if not eventos.empty:
 
 m1,m2,m3,m4,m5=st.columns(5)
 m1.metric("Visitas",visitas)
-m2.metric("Diagnósticos vistos",diag_vistos,f"{diag_vistos/visitas*100:.0f}%" if visitas else "—")
+m2.metric("Diagnósticos",diag_vistos,f"{diag_vistos/visitas*100:.0f}%" if visitas else "—")
 m3.metric("Interés Beta",intereses,f"{intereses/visitas*100:.0f}%" if visitas else "—")
 m4.metric("Feedback",feedbacks,f"{feedbacks/visitas*100:.0f}%" if visitas else "—")
-m5.metric("Contactos únicos",unique_contacts)
+m5.metric("Contactos",unique_contacts)
 
-T1,T2,T3,T4=st.tabs(["📈 Embudo","🧭 Comportamiento","👥 Contactos","⭐ Feedback"])
+T1,T2,T3,T4,T5=st.tabs(["📈 Embudo","🧩 Módulos","🧭 Comportamiento","👥 Contactos","⭐ Feedback"])
 
 with T1:
-    st.subheader("Embudo actual")
-    funnel=pd.DataFrame({"Etapa":["Visitas","Diagnóstico visto","Interés Beta","Feedback"],"Personas":[visitas,diag_vistos,intereses,feedbacks]})
+    funnel=pd.DataFrame({"Etapa":["Visitas","Diagnóstico","Interés Beta","Feedback"],"Personas":[visitas,diag_vistos,intereses,feedbacks]})
     funnel["% sobre visitas"]=[100 if visitas else 0]+[(x/visitas*100 if visitas else 0) for x in [diag_vistos,intereses,feedbacks]]
     st.dataframe(funnel.style.format({"% sobre visitas":"{:.1f}%"}),hide_index=True,width="stretch")
     st.bar_chart(funnel.set_index("Etapa")[["Personas"]])
     if not eventos.empty:
         ev=eventos.copy(); ev["utm_source"]=ev.get("utm_source","direct").fillna("direct").replace("","direct")
         canal=ev.groupby(["utm_source","evento"])["session_id"].nunique().unstack(fill_value=0)
-        out=pd.DataFrame({"Canal":canal.index,"Visitas":canal.get("visita",0),"Diagnóstico visto":canal.get("diagnostico_visto",0),"Interés Beta":canal.get("beta_interes",0),"Feedback":canal.get("feedback_enviado",0)}).reset_index(drop=True)
-        st.subheader("Conversión por canal")
-        st.dataframe(out,hide_index=True,width="stretch")
+        out=pd.DataFrame({"Canal":canal.index,"Visitas":canal.get("visita",0),"Diagnóstico":canal.get("diagnostico_visto",0),"Interés Beta":canal.get("beta_interes",0),"Feedback":canal.get("feedback_enviado",0)}).reset_index(drop=True)
+        st.subheader("Conversión por canal"); st.dataframe(out,hide_index=True,width="stretch")
 
 with T2:
-    st.subheader("Pantallas visitadas")
+    st.subheader("Interés por módulo")
     if eventos.empty:
         st.info("Todavía no hay eventos.")
     else:
+        mod=eventos[eventos.evento.str.startswith("modulo_",na=False) & ~eventos.evento.str.startswith("modulo_prioridad_",na=False) & (eventos.evento!="modulos_interes_guardados")].copy()
+        if mod.empty: st.info("Todavía no hay selecciones de módulos con la nueva versión.")
+        else:
+            mod["Módulo"]=mod.evento.str.replace("modulo_","",regex=False).str.replace("_"," ").str.title().replace({"Sii":"SII","Ia":"IA"})
+            table=mod.groupby("Módulo")["session_id"].nunique().sort_values(ascending=False).rename("Personas").to_frame()
+            st.bar_chart(table); st.dataframe(table.reset_index(),hide_index=True,width="stretch")
+
+        st.subheader("Módulo que construirían primero")
+        pri=eventos[eventos.evento.str.startswith("modulo_prioridad_",na=False)].copy()
+        if pri.empty: st.info("Aún no hay prioridades explícitas.")
+        else:
+            pri["Módulo"]=pri.evento.str.replace("modulo_prioridad_","",regex=False).str.replace("_"," ").str.title().replace({"Sii":"SII","Ia":"IA"})
+            ptable=pri.groupby("Módulo")["session_id"].nunique().sort_values(ascending=False).rename("Votos").to_frame()
+            st.bar_chart(ptable); st.dataframe(ptable.reset_index(),hide_index=True,width="stretch")
+
+with T3:
+    st.subheader("Pantallas visitadas")
+    if eventos.empty: st.info("Todavía no hay eventos.")
+    else:
         screen=eventos[eventos.evento.str.startswith("pantalla_",na=False)].copy()
-        if screen.empty: st.info("El tracking por pantalla empezó con la nueva versión; aún no hay suficiente tráfico.")
+        if screen.empty: st.info("Aún no hay suficiente tráfico con tracking por pantalla.")
         else:
             screen["Pantalla"]=screen.evento.str.replace("pantalla_","",regex=False).str.replace("_"," ").str.title()
             screens=screen.groupby("Pantalla")["session_id"].nunique().sort_values(ascending=False).rename("Sesiones").to_frame()
-            st.bar_chart(screens)
-            st.dataframe(screens.reset_index(),hide_index=True,width="stretch")
-
-        st.subheader("Problema elegido en la portada")
+            st.bar_chart(screens); st.dataframe(screens.reset_index(),hide_index=True,width="stretch")
+        st.subheader("Problema principal")
         pain=eventos[eventos.evento.str.startswith("dolor_",na=False)].copy()
-        if pain.empty: st.info("Todavía nadie ha elegido un problema con la nueva portada.")
+        if pain.empty: st.info("Todavía no hay respuestas suficientes.")
         else:
             pain["Problema"]=pain.evento.str.replace("dolor_","",regex=False).str.replace("_"," ").str.title()
             pains=pain.groupby("Problema")["session_id"].nunique().sort_values(ascending=False).rename("Personas").to_frame()
             st.bar_chart(pains); st.dataframe(pains.reset_index(),hide_index=True,width="stretch")
 
-with T3:
+with T4:
     st.subheader("Contactos")
     if contacts.empty: st.info("Todavía no hay contactos.")
     else:
         editor=contacts.copy(); editor["Fecha"]=fmt_date(editor["Fecha"])
-        edited=st.data_editor(editor,hide_index=True,width="stretch",disabled=["_id","_entity","Fecha","Origen registro","Nombre","Empresa","Email","WhatsApp","Rubro","Necesidad","Plan","Disposición pago","Canal","Campaña"],column_config={"_id":None,"_entity":None,"Estado":st.column_config.SelectboxColumn("Estado",options=["nuevo","contactado","beta","cliente","descartado"],required=True)},key="contact_editor")
+        edited=st.data_editor(editor,hide_index=True,width="stretch",disabled=["_id","_entity","Fecha","Origen","Nombre","Empresa","Email","Necesidad","Canal"],column_config={"_id":None,"_entity":None,"Estado":st.column_config.SelectboxColumn("Estado",options=["nuevo","contactado","beta","cliente","descartado"],required=True)},key="contact_editor")
         if st.button("Guardar cambios",type="primary"):
             changes=errors=0
             for idx in edited.index:
@@ -132,21 +148,19 @@ with T3:
             if errors: st.error(f"Guardados {changes}; fallaron {errors}.")
             elif changes: st.success(f"✅ {changes} cambio(s) guardado(s)."); st.rerun()
             else: st.info("No había cambios.")
-        cols=[c for c in editor.columns if not c.startswith("_")]
-        st.download_button("Descargar contactos CSV",data=editor[cols].to_csv(index=False).encode("utf-8-sig"),file_name="control_pyme_contactos_beta.csv",mime="text/csv")
 
-with T4:
+with T5:
     if feedback.empty: st.info("Todavía no hay feedback completo.")
     else:
         avg=feedback.puntuacion.mean() if "puntuacion" in feedback.columns else 0
         yes=(feedback.get("utilidad",pd.Series(dtype=str))=="Sí").sum()
         a,b,c=st.columns(3); a.metric("Respuestas",len(feedback)); b.metric("Nota promedio",f"{avg:.1f}/5"); c.metric("Sí les sirve",int(yes))
         if "parte_util" in feedback.columns:
-            parts=feedback.parte_util.fillna("Sin respuesta").value_counts().rename_axis("Parte").reset_index(name="Respuestas")
-            st.bar_chart(parts.set_index("Parte"))
+            parts=feedback.parte_util.fillna("Sin respuesta").value_counts().rename_axis("Prioridad").reset_index(name="Respuestas")
+            st.bar_chart(parts.set_index("Prioridad"))
         view=feedback.copy()
         if "created_at" in view.columns: view["created_at"]=fmt_date(view["created_at"])
-        show=[c for c in ["created_at","puntuacion","utilidad","parte_util","comentario","email","utm_source","utm_campaign"] if c in view.columns]
+        show=[c for c in ["created_at","puntuacion","utilidad","parte_util","comentario","utm_source","utm_campaign"] if c in view.columns]
         st.dataframe(view[show],hide_index=True,width="stretch")
 
 st.divider(); st.caption("Panel privado · datos vía Edge Function protegida")
