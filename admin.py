@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import requests
 import pandas as pd
 import streamlit as st
@@ -26,14 +25,17 @@ def fetch_leads() -> tuple[pd.DataFrame | None, str]:
         return None, "Faltan Secrets de Supabase o ADMIN_TOKEN."
 
     try:
-        r = requests.post(
-            f"{url.rstrip('/')}/rest/v1/rpc/listar_leads_beta",
+        r = requests.get(
+            f"{url.rstrip('/')}/rest/v1/leads",
             headers={
                 "apikey": key,
                 "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json",
+                "x-admin-token": admin_token,
             },
-            data=json.dumps({"p_token": admin_token}),
+            params={
+                "select": "id,nombre,email,telefono,empresa,rubro,trabajadores,ventas_mensuales,herramienta_actual,dolor_principal,vende_credito,interes_legal,disposicion_pago,estado,created_at",
+                "order": "created_at.desc",
+            },
             timeout=15,
         )
         if r.status_code != 200:
@@ -47,7 +49,6 @@ def fetch_leads() -> tuple[pd.DataFrame | None, str]:
         return None, f"Error de conexión: {exc}"
 
 
-# Segunda barrera local de acceso al panel.
 expected = secret("ADMIN_TOKEN")
 if not expected:
     st.error("El panel todavía no tiene ADMIN_TOKEN configurado en Streamlit Secrets.")
@@ -83,7 +84,6 @@ if leads.empty:
     st.info("Todavía no hay leads registrados.")
     st.stop()
 
-# KPIs
 n = len(leads)
 contactables = leads[[c for c in ["email", "telefono"] if c in leads.columns]].fillna("").astype(str)
 contactables_count = (contactables.apply(lambda row: any(v.strip() for v in row), axis=1)).sum() if not contactables.empty else 0
@@ -127,4 +127,4 @@ st.dataframe(view, hide_index=True, width="stretch")
 csv = view.to_csv(index=False).encode("utf-8-sig")
 st.download_button("Descargar leads CSV", data=csv, file_name="control_pyme_leads.csv", mime="text/csv")
 
-st.caption("Los datos de este panel se consultan mediante una función protegida en Supabase; la tabla de leads no está abierta a lectura pública.")
+st.caption("Acceso protegido por Streamlit Secrets y RLS en Supabase. La lectura pública de leads está bloqueada.")
