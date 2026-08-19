@@ -12,14 +12,16 @@ st.set_page_config(page_title="Control Pyme Beta", page_icon="📊", layout="wid
 
 st.markdown("""
 <style>
-.block-container {padding-top:3.2rem; padding-bottom:3rem; max-width:1400px}
+.block-container {padding-top:3.0rem; padding-bottom:3rem; max-width:1400px}
 [data-testid="stSidebar"] {min-width:235px; max-width:235px}
 .kpi {border:1px solid #e7e7e7;border-radius:16px;padding:18px;background:white;min-height:118px;box-shadow:0 2px 10px rgba(0,0,0,.035)}
 .kpi .label {font-size:.83rem;color:#68707a;margin-bottom:7px}.kpi .value {font-size:1.72rem;font-weight:800}.kpi .sub {font-size:.78rem;color:#7a818a;margin-top:7px}
-.hero {padding:20px 24px;border-radius:20px;background:linear-gradient(135deg,#f8fafc,#eef2ff);border:1px solid #e5e7eb;margin-bottom:16px}
-.demo-banner {border:1px solid #f59e0b;background:#fffbeb;border-radius:14px;padding:12px 15px;margin:0 0 18px;line-height:1.45;font-size:.94rem}
+.hero {padding:20px 24px;border-radius:20px;background:linear-gradient(135deg,#f8fafc,#eef2ff);border:1px solid #e5e7eb;margin-bottom:14px}
+.demo-banner {border:1px solid #f59e0b;background:#fffbeb;border-radius:14px;padding:12px 15px;margin:14px 0 18px;line-height:1.45;font-size:.94rem}
 .module-card {border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:#fff;min-height:100px}
-@media (max-width:768px){.block-container{padding-top:2.8rem;padding-left:1rem;padding-right:1rem}.demo-banner{font-size:.88rem;padding:10px 12px}}
+.answer-card {border:1px solid #bfdbfe;background:#eff6ff;border-radius:18px;padding:18px 20px;margin:16px 0}
+.first-question {border:1px solid #dbeafe;background:#f8fbff;border-radius:20px;padding:18px 20px;margin:8px 0 12px}
+@media (max-width:768px){.block-container{padding-top:2.5rem;padding-left:1rem;padding-right:1rem}.demo-banner{font-size:.86rem;padding:10px 12px}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -105,6 +107,14 @@ def slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", repl).strip("_")
 
 
+def select_problem(value: str) -> None:
+    st.session_state.selected_problem = value
+    event(f"dolor_{slug(value)}")
+    if not st.session_state.get("first_interaction_logged"):
+        event("primera_interaccion")
+        st.session_state.first_interaction_logged = True
+
+
 if not st.session_state.get("visit_logged"):
     event("visita")
     st.session_state.visit_logged = True
@@ -121,6 +131,17 @@ MODULE_DESCRIPTIONS = {
     "IA": "Una capa transversal que analiza todo y recomienda qué hacer hoy.",
 }
 
+PROBLEM_MESSAGES = {
+    "Caja y liquidez": "Te mostraremos cobros y pagos próximos para anticipar si te faltará caja y qué mover primero.",
+    "Cobranza": "Priorizaremos quién te debe, cuánto, desde cuándo y qué cobro conviene gestionar hoy.",
+    "SII / impuestos": "Te ayudaremos a ordenar documentos, obligaciones y alertas tributarias sin reemplazar a tu contador.",
+    "Marketing y ventas": "Podrás comparar campañas, leads, clientes y ventas para saber dónde realmente conviene invertir.",
+    "Rentabilidad": "Te ayudaremos a ver qué clientes, productos o servicios realmente generan margen.",
+    "Inventario": "Podrás detectar quiebres, exceso de stock y compras que deberías anticipar.",
+    "Conciliación bancaria": "La idea es conciliar movimientos automáticamente y dejarte solo las excepciones que requieren revisión.",
+    "Contratos / Legal": "Podrás detectar fechas críticas, renovaciones, obligaciones y riesgos antes de que se conviertan en un problema.",
+}
+
 TODAY = pd.Timestamp.today().normalize()
 ventas = pd.DataFrame([
     {"cliente":"Cliente Andes","total":1_180_000,"vence":TODAY-pd.Timedelta(days=47),"margen":.31},
@@ -134,45 +155,67 @@ start=st.query_params.get("start","")
 default_map={"diagnostico":1,"beta":2,"modulos":3,"conciliacion":6,"feedback":8,"privacidad":9}
 menu=st.sidebar.radio("Control Pyme",menu_options,index=default_map.get(start,0))
 st.sidebar.caption("🧪 Beta pública · Chile")
-st.sidebar.info("Primero queremos entender qué necesita tu negocio. Puedes recorrer la demo sin entregar datos personales.")
+st.sidebar.info("Puedes recorrer la demo sin entregar datos personales. Si quieres, parte por una pregunta de 5 segundos.")
 
 page_slug={menu_options[i]:s for i,s in enumerate(["inicio","diagnostico","beta","modulos","caja","alertas","conciliacion","legal","feedback","privacidad"])}[menu]
 page_event(page_slug)
 
-st.markdown('<div class="demo-banner"><b>🧪 DEMO PÚBLICA · DATOS FICTICIOS</b><br>Explora libremente. No ingreses claves, datos bancarios, documentos reales ni información sensible.</div>',unsafe_allow_html=True)
+if menu != "🏠 Inicio":
+    st.markdown('<div class="demo-banner"><b>🧪 DEMO PÚBLICA · DATOS FICTICIOS</b><br>Explora libremente. No ingreses claves, datos bancarios, documentos reales ni información sensible.</div>',unsafe_allow_html=True)
 
 if menu=="🏠 Inicio":
-    st.markdown('<div class="hero"><h2 style="margin:0">Una plataforma para gestionar y hacer crecer tu negocio</h2><div style="color:#667085;margin-top:6px">Finanzas, Cobranza, SII, Marketing, Legal, Inventario, Conciliación bancaria e IA en una sola visión.</div></div>',unsafe_allow_html=True)
-    st.subheader("¿Qué áreas te gustaría controlar desde un solo lugar?")
-    st.caption("Marca todas las que te interesen. No necesitas dejar correo.")
-    with st.form("module_interest_home"):
-        chosen = st.multiselect("Áreas de interés", MODULES, placeholder="Elige una o varias")
-        save_modules = st.form_submit_button("Guardar mis intereses", type="primary", width="stretch")
-    if save_modules:
-        if not chosen:
-            st.warning("Elige al menos un área.")
-        else:
-            for module in chosen:
-                event(f"modulo_{slug(module)}")
-            event("modulos_interes_guardados")
-            st.success("Gracias. Ya sabemos qué áreas te interesan más.")
-            st.link_button("Ver cómo funcionaría →", "?start=modulos", width="stretch")
+    st.markdown('<div class="hero"><h2 style="margin:0">¿Qué problema de tu negocio te gustaría resolver primero?</h2><div style="color:#667085;margin-top:6px">Haz un clic. No te pediremos nombre, correo ni datos de tu empresa.</div></div>',unsafe_allow_html=True)
 
-    st.subheader("Vista rápida del negocio")
+    st.markdown('<div class="first-question"><b>Elige lo que más te complica hoy:</b></div>', unsafe_allow_html=True)
+    row1=st.columns(4)
+    row2=st.columns(4)
+    choices=[
+        ("💵 Caja", "Caja y liquidez"),
+        ("📞 Cobranza", "Cobranza"),
+        ("🧾 SII", "SII / impuestos"),
+        ("📣 Marketing", "Marketing y ventas"),
+        ("📈 Rentabilidad", "Rentabilidad"),
+        ("📦 Inventario", "Inventario"),
+        ("🏦 Banco", "Conciliación bancaria"),
+        ("⚖️ Legal", "Contratos / Legal"),
+    ]
+    for i,(label,value) in enumerate(choices[:4]):
+        if row1[i].button(label,key=f"first_{i}",type="primary",width="stretch"):
+            select_problem(value)
+    for i,(label,value) in enumerate(choices[4:]):
+        if row2[i].button(label,key=f"first_{i+4}",width="stretch"):
+            select_problem(value)
+
+    selected=st.session_state.get("selected_problem")
+    if selected:
+        st.markdown(f'<div class="answer-card"><b>Perfecto. Si hoy tu problema es {selected}:</b><br>{PROBLEM_MESSAGES[selected]}</div>',unsafe_allow_html=True)
+        cta1,cta2=st.columns([2,1])
+        with cta1:
+            st.link_button("Ver mi diagnóstico en menos de 1 minuto →","?start=diagnostico",type="primary",width="stretch")
+        with cta2:
+            st.link_button("Explorar módulos","?start=modulos",width="stretch")
+    else:
+        st.caption("👆 Con un solo clic ya nos ayudas a entender qué debería priorizar el producto.")
+
+    st.markdown('<div class="demo-banner"><b>🧪 DEMO PÚBLICA · DATOS FICTICIOS</b><br>Lo que ves abajo es un ejemplo. No ingreses claves, cartolas, documentos reales ni información sensible.</div>',unsafe_allow_html=True)
+
+    st.subheader("Así se vería tu negocio en una sola pantalla")
     c=st.columns(4)
     with c[0]: kpi("Ventas mes",money(KPIS["ventas"]),"Ejemplo")
     with c[1]: kpi("Margen",f'{KPIS["margen_pct"]:.1%}'.replace(".",","),money(KPIS["margen"]))
     with c[2]: kpi("Caja",money(KPIS["caja"]),"Atención")
     with c[3]: kpi("Por cobrar",money(KPIS["por_cobrar"]),"Ficticio")
     st.info("🤖 **IA:** “Tienes $1,91 MM vencidos. Prioriza esos cobros antes de comprometer pagos no críticos.”")
-    st.link_button("💬 Hacer diagnóstico rápido", "?start=diagnostico", type="primary", width="stretch")
+    st.caption("Finanzas · Cobranza · SII · Marketing · Legal · Inventario · Conciliación bancaria · IA")
 
 elif menu=="💬 Diagnóstico rápido":
     st.title("💬 Diagnóstico rápido")
     st.caption("Menos de 1 minuto. El contacto es opcional.")
-    options=["Caja y liquidez","Cobranza","SII / impuestos","Marketing y ventas","Saber mi rentabilidad","Inventario","Conciliación bancaria","Contratos/Legal","Orden general del negocio","Otro"]
+    options=["Caja y liquidez","Cobranza","SII / impuestos","Marketing y ventas","Rentabilidad","Inventario","Conciliación bancaria","Contratos / Legal","Orden general del negocio","Otro"]
+    default_problem=st.session_state.get("selected_problem", options[0])
+    default_index=options.index(default_problem) if default_problem in options else 0
     with st.form("diag_rapido"):
-        dolor=st.selectbox("1. ¿Qué te preocupa más hoy?",options)
+        dolor=st.selectbox("1. ¿Qué te preocupa más hoy?",options,index=default_index)
         trabajadores=st.selectbox("2. ¿Cuántas personas trabajan en el negocio?",["1","2–5","6–10","11–25","26–50","Más de 50"])
         sistema=st.multiselect("3. ¿Cómo administras hoy?",["Excel","Contador","ERP","Software de facturación","Cuaderno/WhatsApp","Otro"])
         modulos=st.multiselect("4. ¿Qué módulos te interesarían?",MODULES)
