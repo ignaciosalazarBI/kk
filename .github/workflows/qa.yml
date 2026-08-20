@@ -1,0 +1,44 @@
+name: QA
+
+on:
+  push:
+    branches: [staging]
+  pull_request:
+    branches: [main]
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip check
+
+      - name: Compile Python files
+        run: |
+          python -m py_compile app.py admin.py
+
+      - name: Ensure Streamlit secrets are not committed
+        run: |
+          if [ -f .streamlit/secrets.toml ]; then
+            echo 'ERROR: .streamlit/secrets.toml must never be committed.'
+            exit 1
+          fi
+
+      - name: Check for service-role key references
+        run: |
+          if grep -R -n 'SUPABASE_SERVICE_ROLE_KEY' . --exclude-dir=.git --exclude='qa.yml'; then
+            echo 'ERROR: service-role key reference found in repository source.'
+            exit 1
+          fi
