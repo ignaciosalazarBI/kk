@@ -91,8 +91,8 @@ def supabase_insert(table: str, payload: dict, timeout: int = 10) -> tuple[bool,
         return False, "conexion"
 
 
-def event(name: str) -> None:
-    supabase_insert("eventos_beta", {
+def event(name: str) -> tuple[bool, str]:
+    return supabase_insert("eventos_beta", {
         "session_id": st.session_state.beta_session_id,
         "evento": clean(name, 100),
         "utm_source": TRACKING["utm_source"],
@@ -104,21 +104,26 @@ def event(name: str) -> None:
 def page_event(name: str) -> None:
     key = f"seen_{name}"
     if not st.session_state.get(key):
-        event(f"pantalla_{name}")
-        st.session_state[key] = True
+        ok, msg = event(f"pantalla_{name}")
+        if ok or msg == "duplicado":
+            st.session_state[key] = True
 
 
 def select_problem(value: str) -> None:
     st.session_state.selected_problem = value
-    event(f"dolor_{slug(value)}")
+    ok_problem, msg_problem = event(f"dolor_{slug(value)}")
+    st.session_state.last_problem_tracking = "ok" if (ok_problem or msg_problem == "duplicado") else msg_problem
     if not st.session_state.get("first_interaction_logged"):
-        event("primera_interaccion")
-        st.session_state.first_interaction_logged = True
+        ok_first, msg_first = event("primera_interaccion")
+        if ok_first or msg_first == "duplicado":
+            st.session_state.first_interaction_logged = True
+        st.session_state.last_first_tracking = "ok" if (ok_first or msg_first == "duplicado") else msg_first
 
 
 if not st.session_state.get("visit_logged"):
-    event("visita")
-    st.session_state.visit_logged = True
+    ok_visit, msg_visit = event("visita")
+    if ok_visit or msg_visit == "duplicado":
+        st.session_state.visit_logged = True
 
 MODULES = ["Finanzas", "Cobranza", "SII", "Marketing", "Legal", "Inventario", "Conciliación bancaria", "IA"]
 MODULE_DESCRIPTIONS = {
@@ -175,16 +180,17 @@ if menu=="🏠 Inicio":
         ("🏦 Conciliar el banco", "Conciliación bancaria"),
         ("⚖️ Evitar problemas legales", "Contratos / Legal"),
     ]
-    row1=st.columns(2)
-    row2=st.columns(2)
-    row3=st.columns(2)
-    row4=st.columns(2)
-    rows=[row1,row2,row3,row4]
+    rows=[st.columns(2), st.columns(2), st.columns(2), st.columns(2)]
     for i,(label,value) in enumerate(choices):
         r=i//2; c=i%2
-        if rows[r][c].button(label,key=f"first_{i}",type="primary" if i<2 else "secondary",width="stretch"):
-            select_problem(value)
-            st.rerun()
+        rows[r][c].button(
+            label,
+            key=f"first_{i}",
+            type="primary" if i<2 else "secondary",
+            width="stretch",
+            on_click=select_problem,
+            args=(value,),
+        )
 
     selected=st.session_state.get("selected_problem")
     if selected:
