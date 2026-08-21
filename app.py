@@ -22,6 +22,7 @@ st.markdown("""
 .module-card {border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:#fff;min-height:100px}
 .kpi {border:1px solid #e7e7e7;border-radius:16px;padding:18px;background:#fff;min-height:112px}
 .kpi .label {font-size:.83rem;color:#68707a;margin-bottom:7px}.kpi .value {font-size:1.65rem;font-weight:800}.kpi .sub {font-size:.78rem;color:#7a818a;margin-top:7px}
+.finance-callout {border:1px solid #bfdbfe;background:#f8fbff;border-radius:18px;padding:18px 20px;margin:12px 0 18px;line-height:1.5}
 @media (max-width:768px){.block-container{padding-top:1.8rem;padding-left:1rem;padding-right:1rem}.hero{padding:20px}.hero h1{font-size:1.65rem}}
 </style>
 """, unsafe_allow_html=True)
@@ -155,13 +156,45 @@ ventas = pd.DataFrame([
 ])
 KPIS={"ventas":3_100_000,"margen":2_040_000,"margen_pct":.658,"caja":-190_000,"por_cobrar":float(ventas.total.sum())}
 
-menu_options=["🏠 Inicio","💬 Diagnóstico rápido","🚀 Participar en la Beta","🧩 Módulos","💵 Caja","🚨 Alertas","🏦 Conciliación bancaria","📑 Legal","⭐ Feedback Beta","🔒 Privacidad"]
+FIN_HISTORY = pd.DataFrame([
+    {"Mes":"Ene","Ingresos":8_900_000,"Gastos":6_850_000,"Presupuesto":9_200_000},
+    {"Mes":"Feb","Ingresos":9_350_000,"Gastos":7_080_000,"Presupuesto":9_400_000},
+    {"Mes":"Mar","Ingresos":10_150_000,"Gastos":7_420_000,"Presupuesto":9_800_000},
+    {"Mes":"Abr","Ingresos":9_780_000,"Gastos":7_610_000,"Presupuesto":10_100_000},
+    {"Mes":"May","Ingresos":10_900_000,"Gastos":7_760_000,"Presupuesto":10_500_000},
+    {"Mes":"Jun","Ingresos":11_420_000,"Gastos":7_940_000,"Presupuesto":10_900_000},
+    {"Mes":"Jul","Ingresos":11_980_000,"Gastos":8_010_000,"Presupuesto":11_500_000},
+    {"Mes":"Ago","Ingresos":12_450_000,"Gastos":8_230_000,"Presupuesto":12_000_000},
+])
+FIN_HISTORY["Utilidad"] = FIN_HISTORY["Ingresos"] - FIN_HISTORY["Gastos"]
+FIN_HISTORY["Margen"] = FIN_HISTORY["Utilidad"] / FIN_HISTORY["Ingresos"]
+
+FIN_BUDGET = pd.DataFrame([
+    {"Concepto":"Ingresos","Presupuesto":12_000_000,"Real":12_450_000},
+    {"Concepto":"Costos directos","Presupuesto":5_250_000,"Real":5_430_000},
+    {"Concepto":"Gastos operacionales","Presupuesto":2_950_000,"Real":2_800_000},
+    {"Concepto":"Utilidad","Presupuesto":3_800_000,"Real":4_220_000},
+])
+FIN_BUDGET["Variación"] = FIN_BUDGET["Real"] - FIN_BUDGET["Presupuesto"]
+FIN_BUDGET["Variación %"] = FIN_BUDGET["Variación"] / FIN_BUDGET["Presupuesto"]
+
+FIN_PROFITABILITY = pd.DataFrame([
+    {"Cliente / línea":"Servicios Norte","Ingresos":3_150_000,"Costos":1_420_000},
+    {"Cliente / línea":"Comercial Sur","Ingresos":2_980_000,"Costos":1_560_000},
+    {"Cliente / línea":"Cliente Andes","Ingresos":2_620_000,"Costos":1_720_000},
+    {"Cliente / línea":"Proyectos especiales","Ingresos":2_150_000,"Costos":1_290_000},
+    {"Cliente / línea":"Otros","Ingresos":1_550_000,"Costos":1_440_000},
+])
+FIN_PROFITABILITY["Utilidad"] = FIN_PROFITABILITY["Ingresos"] - FIN_PROFITABILITY["Costos"]
+FIN_PROFITABILITY["Margen %"] = FIN_PROFITABILITY["Utilidad"] / FIN_PROFITABILITY["Ingresos"]
+
+menu_options=["🏠 Inicio","💬 Diagnóstico rápido","🚀 Participar en la Beta","🧩 Módulos","📊 Finanzas","💵 Caja","🚨 Alertas","🏦 Conciliación bancaria","📑 Legal","⭐ Feedback Beta","🔒 Privacidad"]
 start=st.query_params.get("start","")
-default_map={"diagnostico":1,"beta":2,"modulos":3,"conciliacion":6,"feedback":8,"privacidad":9}
+default_map={"diagnostico":1,"beta":2,"modulos":3,"finanzas":4,"conciliacion":7,"feedback":9,"privacidad":10}
 menu=st.sidebar.radio("Control Pyme",menu_options,index=default_map.get(start,0))
 st.sidebar.caption("🧪 Beta pública · Chile")
 st.sidebar.info("Puedes recorrer la demo sin entregar datos personales.")
-page_slug={menu_options[i]:s for i,s in enumerate(["inicio","diagnostico","beta","modulos","caja","alertas","conciliacion","legal","feedback","privacidad"])}[menu]
+page_slug={menu_options[i]:s for i,s in enumerate(["inicio","diagnostico","beta","modulos","finanzas","caja","alertas","conciliacion","legal","feedback","privacidad"])}[menu]
 page_event(page_slug)
 
 if menu != "🏠 Inicio":
@@ -274,7 +307,93 @@ elif menu=="🧩 Módulos":
     with c[1]: kpi("Margen",f'{KPIS["margen_pct"]:.1%}'.replace(".",","),money(KPIS["margen"]))
     with c[2]: kpi("Caja",money(KPIS["caja"]),"Atención")
     with c[3]: kpi("Por cobrar",money(KPIS["por_cobrar"]),"Ficticio")
-    st.link_button("⭐ Decir qué construir primero","?start=feedback",type="primary",width="stretch")
+    st.link_button("📊 Explorar módulo Finanzas","?start=finanzas",type="primary",width="stretch")
+    st.link_button("⭐ Decir qué construir primero","?start=feedback",width="stretch")
+
+elif menu=="📊 Finanzas":
+    st.title("📊 Finanzas")
+    st.caption("Una vista simple para entender cuánto vendes, cuánto gastas, cuánto ganas y qué viene después.")
+
+    ultimo = FIN_HISTORY.iloc[-1]
+    anterior = FIN_HISTORY.iloc[-2]
+    ingresos = float(ultimo["Ingresos"])
+    gastos = float(ultimo["Gastos"])
+    utilidad = float(ultimo["Utilidad"])
+    margen = float(ultimo["Margen"])
+    crecimiento = ingresos / float(anterior["Ingresos"]) - 1
+
+    a,b,c,d=st.columns(4)
+    a.metric("Ingresos del mes",money(ingresos),f"{crecimiento:+.1%} vs mes anterior")
+    b.metric("Gastos del mes",money(gastos),f"{gastos/ingresos:.1%} de los ingresos")
+    c.metric("Utilidad",money(utilidad),f"Margen {margen:.1%}")
+    d.metric("Caja disponible",money(3_820_000),"Después de pagos próximos")
+
+    st.markdown('<div class="finance-callout"><b>🤖 Lectura rápida</b><br>Los ingresos crecieron frente al mes anterior y la utilidad está sobre presupuesto. La principal oportunidad está en revisar clientes o líneas con margen bajo antes de aumentar ventas sin rentabilidad.</div>',unsafe_allow_html=True)
+
+    tab1,tab2,tab3,tab4=st.tabs(["📈 Resumen","🎯 Presupuesto vs Real","💹 Rentabilidad","🔮 Forecast"])
+
+    with tab1:
+        st.subheader("Evolución mensual")
+        chart=FIN_HISTORY.set_index("Mes")[["Ingresos","Gastos","Utilidad"]].copy()/1_000_000
+        chart.columns=["Ingresos MM$","Gastos MM$","Utilidad MM$"]
+        st.line_chart(chart)
+        st.caption("Montos expresados en millones de pesos. Datos ficticios.")
+
+        st.subheader("Últimos meses")
+        resumen=FIN_HISTORY[["Mes","Ingresos","Gastos","Utilidad","Margen"]].copy()
+        resumen["Ingresos"]=resumen["Ingresos"].map(money)
+        resumen["Gastos"]=resumen["Gastos"].map(money)
+        resumen["Utilidad"]=resumen["Utilidad"].map(money)
+        resumen["Margen"]=resumen["Margen"].map(lambda x:f"{x:.1%}")
+        st.dataframe(resumen.tail(5),hide_index=True,width="stretch")
+
+    with tab2:
+        st.subheader("Presupuesto vs Real · Agosto")
+        presupuesto=FIN_BUDGET.copy()
+        presupuesto["Estado"]=presupuesto.apply(
+            lambda r:"✅ Mejor que presupuesto" if (r["Concepto"] in ["Ingresos","Utilidad"] and r["Variación"]>=0) or (r["Concepto"] in ["Costos directos","Gastos operacionales"] and r["Variación"]<=0) else "⚠️ Revisar",
+            axis=1,
+        )
+        display=presupuesto.copy()
+        for col in ["Presupuesto","Real","Variación"]:
+            display[col]=display[col].map(money)
+        display["Variación %"]=display["Variación %"].map(lambda x:f"{x:+.1%}")
+        st.dataframe(display,hide_index=True,width="stretch")
+        st.success("La utilidad está $420 mil sobre presupuesto. Los costos directos están $180 mil por encima del plan, pero el OPEX compensa parcialmente esa desviación.")
+
+    with tab3:
+        st.subheader("Rentabilidad por cliente / línea")
+        rent=FIN_PROFITABILITY.sort_values("Margen %",ascending=False).copy()
+        rent["Estado"]=rent["Margen %"].map(lambda x:"🟢 Sano" if x>=.35 else "🟡 Revisar" if x>=.15 else "🔴 Bajo")
+        show=rent.copy()
+        for col in ["Ingresos","Costos","Utilidad"]:
+            show[col]=show[col].map(money)
+        show["Margen %"]=show["Margen %"].map(lambda x:f"{x:.1%}")
+        st.dataframe(show,hide_index=True,width="stretch")
+        peor=FIN_PROFITABILITY.sort_values("Margen %").iloc[0]
+        st.warning(f"⚠️ **{peor['Cliente / línea']}** tiene el margen más bajo ({peor['Margen %']:.1%}). Antes de vender más, conviene revisar precio, costos o alcance del servicio.")
+
+    with tab4:
+        st.subheader("Forecast de los próximos 3 meses")
+        escenario=st.selectbox("Escenario",["Base","Conservador","Crecimiento"],index=0)
+        multiplicadores={"Conservador":0.94,"Base":1.00,"Crecimiento":1.08}
+        factor=multiplicadores[escenario]
+        base_ingresos=[12_800_000,13_200_000,13_650_000]
+        base_gastos=[8_380_000,8_520_000,8_730_000]
+        forecast=pd.DataFrame({"Mes":["Sep","Oct","Nov"],"Ingresos":[v*factor for v in base_ingresos],"Gastos":base_gastos})
+        forecast["Utilidad"]=forecast["Ingresos"]-forecast["Gastos"]
+        forecast["Margen"]=forecast["Utilidad"]/forecast["Ingresos"]
+        view=forecast.copy()
+        for col in ["Ingresos","Gastos","Utilidad"]:
+            view[col]=view[col].map(money)
+        view["Margen"]=view["Margen"].map(lambda x:f"{x:.1%}")
+        st.dataframe(view,hide_index=True,width="stretch")
+        total_forecast=float(forecast["Utilidad"].sum())
+        st.info(f"🔮 En escenario **{escenario}**, la utilidad acumulada estimada para los próximos tres meses sería **{money(total_forecast)}**. El forecast debe recalcularse con datos reales cuando exista integración.")
+
+    st.divider()
+    st.markdown("**Lo que queremos validar:** ¿esta vista te permitiría entender la salud financiera de tu negocio sin depender de una planilla compleja?")
+    st.link_button("⭐ Dar feedback sobre Finanzas","?start=feedback",type="primary",width="stretch")
 
 elif menu=="💵 Caja":
     st.title("💵 Caja proyectada")
