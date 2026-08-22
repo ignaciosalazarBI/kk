@@ -2,7 +2,7 @@ name: QA
 
 on:
   push:
-    branches: [staging]
+    branches: [staging, hotfix-runtime]
   pull_request:
     branches: [main]
 
@@ -28,6 +28,27 @@ jobs:
       - name: Compile all Python files
         run: |
           python -m compileall -q app.py admin.py beta_modules.py pages
+
+      - name: Streamlit runtime smoke test
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from streamlit.testing.v1 import AppTest
+
+          targets = [Path('app.py')]
+          targets.extend(sorted(Path('pages').glob('*.py')))
+          failed = []
+          for target in targets:
+              print(f'Running {target}...')
+              at = AppTest.from_file(str(target), default_timeout=20).run()
+              if len(at.exception):
+                  failed.append(str(target))
+                  for exc in at.exception:
+                      print(f'ERROR in {target}: {exc.value}')
+          if failed:
+              raise SystemExit('Streamlit runtime failures: ' + ', '.join(failed))
+          print('All Streamlit runtime smoke tests passed.')
+          PY
 
       - name: Ensure Streamlit secrets are not committed
         run: |
