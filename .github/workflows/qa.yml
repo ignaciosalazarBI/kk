@@ -2,7 +2,7 @@ name: QA
 
 on:
   push:
-    branches: [staging]
+    branches: [staging, hotfix-runtime]
   pull_request:
     branches: [main]
 
@@ -27,7 +27,46 @@ jobs:
 
       - name: Compile all Python files
         run: |
-          python -m compileall -q app.py admin.py beta_modules.py pages
+          python -m compileall -q app.py admin.py legacy_app.py beta_modules.py beta_runtime.py pages
+
+      - name: Streamlit runtime smoke test
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from streamlit.testing.v1 import AppTest
+
+          def assert_clean(at, label):
+              if len(at.exception):
+                  for exc in at.exception:
+                      print(f'ERROR in {label}: {exc.value}')
+                  return False
+              return True
+
+          failed = []
+
+          print('Running app.py...')
+          at = AppTest.from_file('app.py', default_timeout=20).run()
+          if not assert_clean(at, 'app.py'):
+              failed.append('app.py')
+
+          for module in ['cobranza','sii','marketing','inventario','conciliacion','legal','ia']:
+              print(f'Running app.py?module={module}...')
+              at = AppTest.from_file('app.py', default_timeout=20)
+              at.query_params['module'] = module
+              at.run()
+              if not assert_clean(at, f'app.py?module={module}'):
+                  failed.append(f'app.py?module={module}')
+
+          for target in sorted(Path('pages').glob('*.py')):
+              print(f'Running {target}...')
+              at = AppTest.from_file(str(target), default_timeout=20).run()
+              if not assert_clean(at, str(target)):
+                  failed.append(str(target))
+
+          if failed:
+              raise SystemExit('Streamlit runtime failures: ' + ', '.join(failed))
+          print('All Streamlit runtime smoke tests passed.')
+          PY
 
       - name: Ensure Streamlit secrets are not committed
         run: |
