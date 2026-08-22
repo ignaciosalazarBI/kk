@@ -25,9 +25,9 @@ jobs:
           pip install -r requirements.txt
           pip check
 
-      - name: Compile Python files
+      - name: Compile all Python files
         run: |
-          python -m py_compile app.py admin.py
+          python -m compileall -q app.py admin.py beta_modules.py pages
 
       - name: Ensure Streamlit secrets are not committed
         run: |
