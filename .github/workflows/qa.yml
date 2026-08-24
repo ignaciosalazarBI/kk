@@ -2,7 +2,7 @@ name: QA
 
 on:
   push:
-    branches: [staging, hotfix-runtime, beta-v0.2]
+    branches: [staging, hotfix-runtime, beta-v0.2, step2-admin-analytics]
   pull_request:
     branches: [main]
 
@@ -84,6 +84,11 @@ jobs:
               at = AppTest.from_file(str(target), default_timeout=20).run()
               if not assert_clean(at, str(target)):
                   failed.append(str(target))
+
+          print('Running admin.py login shell...')
+          at = AppTest.from_file('admin.py', default_timeout=20).run()
+          if not assert_clean(at, 'admin.py'):
+              failed.append('admin.py')
 
           if failed:
               raise SystemExit('Streamlit runtime failures: ' + ', '.join(failed))
