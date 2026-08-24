@@ -2,7 +2,7 @@ name: QA
 
 on:
   push:
-    branches: [staging, hotfix-runtime]
+    branches: [staging, hotfix-runtime, beta-v0.2]
   pull_request:
     branches: [main]
 
@@ -24,6 +24,28 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip check
+
+      - name: Verify pinned runtime
+        run: |
+          python - <<'PY'
+          from importlib.metadata import version
+
+          expected = {
+              'streamlit': '1.62.0',
+              'pandas': '3.0.5',
+              'plotly': '6.9.0',
+              'requests': '2.34.2',
+          }
+          failed = []
+          for package, wanted in expected.items():
+              actual = version(package)
+              print(f'{package}: {actual}')
+              if actual != wanted:
+                  failed.append(f'{package} expected {wanted}, got {actual}')
+          if failed:
+              raise SystemExit('Pinned runtime mismatch: ' + '; '.join(failed))
+          print('Pinned runtime verified.')
+          PY
 
       - name: Compile all Python files
         run: |
