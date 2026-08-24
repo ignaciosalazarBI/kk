@@ -2,7 +2,7 @@ name: QA
 
 on:
   push:
-    branches: [staging, hotfix-runtime, beta-v0.2, step2-admin-analytics]
+    branches: [staging, hotfix-runtime, beta-v0.2, step2-admin-analytics, fix-admin-cohort]
   pull_request:
     branches: [main]
 
@@ -49,7 +49,42 @@ jobs:
 
       - name: Compile all Python files
         run: |
-          python -m compileall -q app.py admin.py legacy_app.py beta_modules.py beta_runtime.py pages
+          python -m compileall -q app.py admin.py admin_v2.py admin_analytics.py legacy_app.py beta_modules.py beta_runtime.py pages
+
+      - name: Validate analytics cohort logic
+        run: |
+          python - <<'PY'
+          import pandas as pd
+          from admin_analytics import (
+              assert_cohort_consistency,
+              build_module_table,
+              event_sessions,
+              module_explorers,
+              visit_cohort,
+          )
+
+          rows = [
+              {'session_id':'A','evento':'visita','created_at':'2026-08-24T12:00:00Z','utm_source':'direct','utm_campaign':'beta_publica'},
+              {'session_id':'A','evento':'pantalla_finanzas','created_at':'2026-08-24T12:01:00Z','utm_source':'direct','utm_campaign':'beta_publica'},
+              {'session_id':'B','evento':'pantalla_cobranza','created_at':'2026-08-24T12:02:00Z','utm_source':'direct','utm_campaign':'beta_publica'},
+              {'session_id':'C','evento':'visita','created_at':'2026-08-24T12:03:00Z','utm_source':'linkedin','utm_campaign':'beta_agosto_2026'},
+              {'session_id':'C','evento':'primera_interaccion','created_at':'2026-08-24T12:04:00Z','utm_source':'linkedin','utm_campaign':'beta_agosto_2026'},
+          ]
+          events = pd.DataFrame(rows)
+          events['created_at'] = pd.to_datetime(events['created_at'], utc=True)
+          cohort = visit_cohort(events)
+
+          assert event_sessions(cohort, 'visita') == 2
+          assert module_explorers(cohort) == 1
+          assert 'B' not in set(cohort['session_id'])
+          assert_cohort_consistency(cohort)
+
+          table = build_module_table(cohort, visits=2).set_index('Módulo')
+          assert int(table.loc['Finanzas', 'Sesiones que entraron']) == 1
+          assert int(table.loc['Cobranza', 'Sesiones que entraron']) == 0
+          assert float(table.loc['Finanzas', '% de visitas']) == 50.0
+          print('Cohort analytics verified.')
+          PY
 
       - name: Streamlit runtime smoke test
         run: |
