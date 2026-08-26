@@ -2,7 +2,7 @@ name: QA
 
 on:
   push:
-    branches: [staging, hotfix-runtime, beta-v0.2, step2-admin-analytics, fix-admin-cohort]
+    branches: [staging, hotfix-runtime, beta-v0.2, step2-admin-analytics, fix-admin-cohort, product-finance-auth]
   pull_request:
     branches: [main]
 
@@ -49,7 +49,7 @@ jobs:
 
       - name: Compile all Python files
         run: |
-          python -m compileall -q app.py admin.py admin_v2.py admin_analytics.py legacy_app.py beta_modules.py beta_runtime.py pages
+          python -m compileall -q app.py admin.py admin_v2.py admin_analytics.py legacy_app.py beta_modules.py beta_runtime.py design_system.py finance_workspace.py pages
 
       - name: Validate analytics cohort logic
         run: |
@@ -86,6 +86,25 @@ jobs:
           print('Cohort analytics verified.')
           PY
 
+      - name: Validate finance visual calculations
+        run: |
+          python - <<'PY'
+          import pandas as pd
+          import finance_workspace as fw
+
+          sample = pd.DataFrame([
+              {'tx_date': pd.Timestamp('2026-08-01'), 'kind':'ingreso', 'status':'pagado', 'category':'Ventas', 'amount':1000000},
+              {'tx_date': pd.Timestamp('2026-08-02'), 'kind':'gasto', 'status':'pagado', 'category':'Proveedor', 'amount':300000},
+              {'tx_date': pd.Timestamp('2026-08-03'), 'kind':'ingreso', 'status':'pendiente', 'category':'Ventas', 'amount':400000},
+          ])
+          assert fw._cash({'initial_cash': 200000}, sample) == 900000
+          fig = fw._trend_chart(sample)
+          assert len(fig.data) == 3
+          fig2 = fw._category_chart(sample)
+          assert len(fig2.data) == 1
+          print('Finance calculations and charts verified.')
+          PY
+
       - name: Streamlit runtime smoke test
         run: |
           python - <<'PY'
@@ -105,6 +124,13 @@ jobs:
           at = AppTest.from_file('app.py', default_timeout=20).run()
           if not assert_clean(at, 'app.py'):
               failed.append('app.py')
+
+          print('Running private finance login shell...')
+          at = AppTest.from_file('app.py', default_timeout=20)
+          at.query_params['workspace'] = 'finanzas'
+          at.run()
+          if not assert_clean(at, 'app.py?workspace=finanzas'):
+              failed.append('app.py?workspace=finanzas')
 
           for module in ['cobranza','sii','marketing','inventario','conciliacion','legal','ia']:
               print(f'Running app.py?module={module}...')
