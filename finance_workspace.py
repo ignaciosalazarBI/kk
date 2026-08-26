@@ -312,7 +312,7 @@ def _category_chart(df: pd.DataFrame) -> go.Figure:
     grouped = expenses.groupby("category", as_index=False)["amount"].sum().sort_values("amount", ascending=True).tail(7) if not expenses.empty else pd.DataFrame(columns=["category", "amount"])
     fig = go.Figure(go.Bar(x=grouped["amount"], y=grouped["category"], orientation="h", marker_color="#667085", marker_line_width=0))
     fig.update_layout(
-        height=330, margin=dict(l=10, r=10, t=15, b=10), paper_bgcolor="rgba(0,0,0,0", plot_bgcolor="rgba(0,0,0,0)",
+        height=330, margin=dict(l=10, r=10, t=15, b=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         showlegend=False, xaxis=dict(showgrid=True, gridcolor="#EEF1F5", tickprefix="$", separatethousands=True), yaxis=dict(showgrid=False),
     )
     return fig
