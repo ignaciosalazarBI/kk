@@ -27,35 +27,65 @@ def _workspace_url() -> str:
     return _preserved_params({"workspace": "finanzas"})
 
 
-def _sidebar_modules() -> None:
-    st.sidebar.markdown("<div style='font-size:.74rem;letter-spacing:.14em;font-weight:800;color:#8EA4D8;margin:.25rem 0 .2rem'>CONTROL PYME</div>", unsafe_allow_html=True)
-    st.sidebar.markdown("<div style='font-size:1.16rem;font-weight:750;color:#fff;margin-bottom:1rem'>Decide con tus números</div>", unsafe_allow_html=True)
-    st.sidebar.markdown(f"[💼 **Mi negocio**]({_workspace_url()})")
-    st.sidebar.divider()
-    st.sidebar.markdown("#### Explorar módulos")
+def _brand() -> None:
+    st.sidebar.markdown(
+        """
+        <div class="hc-brand">
+          <div class="hc-brand-mark">CP</div>
+          <div>
+            <div class="hc-brand-name">Control Pyme</div>
+            <div class="hc-brand-sub">GESTIÓN FINANCIERA</div>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _nav_link(label: str, href: str, *, active: bool = False, primary: bool = False) -> None:
+    classes = ["hc-nav-link"]
+    if active:
+        classes.append("active")
+    if primary:
+        classes.append("primary")
+    dot = "" if primary else '<span class="hc-nav-dot"></span>'
+    st.sidebar.markdown(
+        f'<a class="{" ".join(classes)}" href="{href}">{dot}<span>{label}</span></a>',
+        unsafe_allow_html=True,
+    )
+
+
+def _sidebar_modules(active_module: str = "") -> None:
+    _brand()
+    _nav_link("Entrar a mi negocio", _workspace_url(), primary=True)
+    st.sidebar.markdown('<div class="hc-nav-label">Explorar</div>', unsafe_allow_html=True)
     links = [
-        ("📞 Cobranza", "cobranza"),
-        ("🧾 SII", "sii"),
-        ("📣 Marketing", "marketing"),
-        ("📦 Inventario", "inventario"),
-        ("🏦 Conciliación", "conciliacion"),
-        ("⚖️ Legal", "legal"),
-        ("🤖 IA", "ia"),
+        ("Cobranza", "cobranza"),
+        ("SII", "sii"),
+        ("Marketing", "marketing"),
+        ("Inventario", "inventario"),
+        ("Conciliación bancaria", "conciliacion"),
+        ("Legal", "legal"),
+        ("Asistente IA", "ia"),
     ]
     for label, slug in links:
-        st.sidebar.markdown(f"[{label}]({_module_url(slug)})")
-    st.sidebar.divider()
-    st.sidebar.markdown("[⌂ Volver al inicio](./)")
-    st.sidebar.caption("Beta · datos demo fuera de Mi negocio")
+        _nav_link(label, _module_url(slug), active=active_module == slug)
+    st.sidebar.markdown('<div class="hc-nav-label">General</div>', unsafe_allow_html=True)
+    _nav_link("Inicio", "./")
+    st.sidebar.caption("Beta pública · usa datos demo fuera de Mi negocio")
 
 
 def _workspace_sidebar() -> None:
-    st.sidebar.markdown("<div style='font-size:.74rem;letter-spacing:.14em;font-weight:800;color:#8EA4D8;margin:.25rem 0 .2rem'>CONTROL PYME</div>", unsafe_allow_html=True)
-    st.sidebar.markdown("<div style='font-size:1.16rem;font-weight:750;color:#fff;margin-bottom:1rem'>Mi negocio</div>", unsafe_allow_html=True)
-    st.sidebar.markdown("**Finanzas**")
-    st.sidebar.caption("Más módulos privados vendrán después de validar esta experiencia.")
+    _brand()
+    st.sidebar.markdown('<div class="hc-nav-label">Mi negocio</div>', unsafe_allow_html=True)
+    _nav_link("Resumen financiero", _workspace_url(), active=True)
+    st.sidebar.markdown('<div class="hc-nav-label">Próximamente</div>', unsafe_allow_html=True)
+    st.sidebar.markdown("<div style='padding:7px 11px;color:#7F96A2;font-size:.82rem'>Cobranza</div>", unsafe_allow_html=True)
+    st.sidebar.markdown("<div style='padding:7px 11px;color:#7F96A2;font-size:.82rem'>Conciliación bancaria</div>", unsafe_allow_html=True)
+    st.sidebar.markdown("<div style='padding:7px 11px;color:#7F96A2;font-size:.82rem'>Presupuesto y forecast</div>", unsafe_allow_html=True)
     st.sidebar.divider()
-    st.sidebar.markdown("[← Volver a la demo](./)")
+    _nav_link("Volver a la demo", "./")
+    st.sidebar.caption("Tus datos financieros están separados por usuario")
 
 
 workspace = str(st.query_params.get("workspace", "")).strip().lower()
@@ -72,10 +102,10 @@ elif module:
     renderer = RENDERERS.get(module)
     if renderer is None:
         st.error("Módulo no encontrado.")
-        st.markdown("[← Volver al inicio](./)")
+        st.markdown("[Volver al inicio](./)")
     else:
         renderer()
-    _sidebar_modules()
+    _sidebar_modules(module)
 else:
     original_set_page_config = st.set_page_config
 
