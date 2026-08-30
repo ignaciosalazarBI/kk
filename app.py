@@ -26,6 +26,17 @@ ICONS = {
     "arrow": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m15 18-6-6 6-6"/></svg>',
 }
 
+WORKSPACES = [
+    ("finanzas", "Finanzas", "chart"),
+    ("cobranza", "Cobranza", "cash"),
+    ("sii", "SII / Impuestos", "invoice"),
+    ("inventario", "Inventario", "box"),
+    ("conciliacion", "Conciliación", "bank"),
+    ("marketing", "Marketing", "megaphone"),
+    ("legal", "Legal", "shield"),
+    ("ia", "Asistente IA", "ai"),
+]
+
 
 def _preserved_params(extra: dict[str, str]) -> str:
     params = {k: v for k, v in extra.items() if v}
@@ -44,8 +55,8 @@ def _public_url(start: str = "") -> str:
     return _preserved_params({"start": start})
 
 
-def _workspace_url() -> str:
-    return _preserved_params({"workspace": "finanzas"})
+def _workspace_url(area: str = "finanzas") -> str:
+    return _preserved_params({"workspace": area})
 
 
 def _brand() -> None:
@@ -86,14 +97,12 @@ def _section(label: str, *, secondary: bool = False) -> None:
 def _public_sidebar(start: str = "", module: str = "") -> None:
     _brand()
     _nav_link("Entrar a mi negocio", _workspace_url(), "login", cta=True)
-
     _section("Principal")
     _nav_link("Inicio", _public_url(), "home", active=not start and not module)
     _nav_link("Diagnóstico", _public_url("diagnostico"), "spark", active=start == "diagnostico")
     _nav_link("Finanzas", _public_url("finanzas"), "chart", active=start == "finanzas")
     _nav_link("Cobranza", _module_url("cobranza"), "cash", active=module == "cobranza")
     _nav_link("Conciliación bancaria", _module_url("conciliacion"), "bank", active=module == "conciliacion")
-
     _section("Más módulos", secondary=True)
     _nav_link("SII", _module_url("sii"), "invoice", active=module == "sii", secondary=True)
     _nav_link("Inventario", _module_url("inventario"), "box", active=module == "inventario", secondary=True)
@@ -101,34 +110,45 @@ def _public_sidebar(start: str = "", module: str = "") -> None:
     _nav_link("Legal", _module_url("legal"), "shield", active=module == "legal", secondary=True)
     _nav_link("Asistente IA", _module_url("ia"), "ai", active=module == "ia", secondary=True)
     _nav_link("Todos los módulos", _public_url("modulos"), "chart", active=start == "modulos", secondary=True)
-
     st.sidebar.markdown('<div class="cp-sidebar-note">Beta pública · los módulos demo usan datos ficticios.</div>', unsafe_allow_html=True)
 
 
-def _workspace_sidebar() -> None:
+def _workspace_sidebar(active_workspace: str) -> None:
     _brand()
+    auth = st.session_state.get("finance_auth") or {}
+    email = str((auth.get("user") or {}).get("email") or "")
     _section("Mi negocio")
-    _nav_link("Resumen financiero", _workspace_url(), "chart", active=True)
-
-    _section("Próximamente", secondary=True)
-    st.sidebar.markdown('<div class="cp-soon cp-nav-secondary">Cobranza automática</div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="cp-soon cp-nav-secondary">Presupuesto y forecast</div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="cp-soon cp-nav-secondary">Conciliación bancaria</div>', unsafe_allow_html=True)
-
+    for slug, label, icon in WORKSPACES:
+        _nav_link(label, _workspace_url(slug), icon, active=active_workspace == slug)
     st.sidebar.divider()
     _nav_link("Volver a la demo", _public_url(), "arrow")
-    st.sidebar.markdown('<div class="cp-sidebar-note">Tus datos privados están aislados por usuario.</div>', unsafe_allow_html=True)
+    if email:
+        st.sidebar.markdown(f'<div class="cp-sidebar-note">Sesión: {html.escape(email)}<br>Tus datos están aislados por usuario.</div>', unsafe_allow_html=True)
+    else:
+        st.sidebar.markdown('<div class="cp-sidebar-note">Inicia sesión para acceder a tus datos privados.</div>', unsafe_allow_html=True)
 
 
 workspace = str(st.query_params.get("workspace", "")).strip().lower()
 module = str(st.query_params.get("module", "")).strip().lower()
 start = str(st.query_params.get("start", "")).strip().lower()
 
-if workspace == "finanzas":
-    _workspace_sidebar()
-    from finance_workspace import render
+if workspace:
+    valid_workspaces = {slug for slug, _, _ in WORKSPACES}
+    if workspace not in valid_workspaces:
+        workspace = "finanzas"
+    _workspace_sidebar(workspace)
+    if workspace == "finanzas":
+        from finance_workspace import render
 
-    render()
+        render()
+    else:
+        from workspace_modules import RENDERERS
+
+        renderer = RENDERERS.get(workspace)
+        if renderer is None:
+            st.error("Módulo privado no disponible.")
+        else:
+            renderer()
 elif module:
     _public_sidebar(start, module)
     from beta_runtime import RENDERERS
@@ -140,8 +160,6 @@ elif module:
     else:
         renderer()
 else:
-    # Render our navigation first. legacy_app still owns the public demo content,
-    # but its old sidebar radio is hidden by the design system and controlled by ?start=.
     _public_sidebar(start, "")
     original_set_page_config = st.set_page_config
 
