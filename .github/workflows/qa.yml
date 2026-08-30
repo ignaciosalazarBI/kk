@@ -2,7 +2,7 @@ name: QA
 
 on:
   push:
-    branches: [staging, hotfix-runtime, beta-v0.2, step2-admin-analytics, fix-admin-cohort, product-finance-auth]
+    branches: [staging, hotfix-runtime, beta-v0.2, step2-admin-analytics, fix-admin-cohort, product-finance-auth, mvp-real-modules]
   pull_request:
     branches: [main]
 
@@ -29,7 +29,6 @@ jobs:
         run: |
           python - <<'PY'
           from importlib.metadata import version
-
           expected = {
               'streamlit': '1.62.0',
               'pandas': '3.0.5',
@@ -49,20 +48,13 @@ jobs:
 
       - name: Compile all Python files
         run: |
-          python -m compileall -q app.py admin.py admin_v2.py admin_analytics.py legacy_app.py beta_modules.py beta_runtime.py design_system.py finance_workspace.py pages
+          python -m compileall -q app.py admin.py admin_v2.py admin_analytics.py legacy_app.py beta_modules.py beta_runtime.py design_system.py finance_workspace.py workspace_modules.py pages
 
       - name: Validate analytics cohort logic
         run: |
           python - <<'PY'
           import pandas as pd
-          from admin_analytics import (
-              assert_cohort_consistency,
-              build_module_table,
-              event_sessions,
-              module_explorers,
-              visit_cohort,
-          )
-
+          from admin_analytics import assert_cohort_consistency, build_module_table, event_sessions, module_explorers, visit_cohort
           rows = [
               {'session_id':'A','evento':'visita','created_at':'2026-08-24T12:00:00Z','utm_source':'direct','utm_campaign':'beta_publica'},
               {'session_id':'A','evento':'pantalla_finanzas','created_at':'2026-08-24T12:01:00Z','utm_source':'direct','utm_campaign':'beta_publica'},
@@ -73,12 +65,10 @@ jobs:
           events = pd.DataFrame(rows)
           events['created_at'] = pd.to_datetime(events['created_at'], utc=True)
           cohort = visit_cohort(events)
-
           assert event_sessions(cohort, 'visita') == 2
           assert module_explorers(cohort) == 1
           assert 'B' not in set(cohort['session_id'])
           assert_cohort_consistency(cohort)
-
           table = build_module_table(cohort, visits=2).set_index('Módulo')
           assert int(table.loc['Finanzas', 'Sesiones que entraron']) == 1
           assert int(table.loc['Cobranza', 'Sesiones que entraron']) == 0
@@ -86,23 +76,23 @@ jobs:
           print('Cohort analytics verified.')
           PY
 
-      - name: Validate finance visual calculations
+      - name: Validate finance and module contracts
         run: |
           python - <<'PY'
           import pandas as pd
           import finance_workspace as fw
-
+          import workspace_modules as wm
           sample = pd.DataFrame([
               {'tx_date': pd.Timestamp('2026-08-01'), 'kind':'ingreso', 'status':'pagado', 'category':'Ventas', 'amount':1000000},
               {'tx_date': pd.Timestamp('2026-08-02'), 'kind':'gasto', 'status':'pagado', 'category':'Proveedor', 'amount':300000},
               {'tx_date': pd.Timestamp('2026-08-03'), 'kind':'ingreso', 'status':'pendiente', 'category':'Ventas', 'amount':400000},
           ])
           assert fw._cash({'initial_cash': 200000}, sample) == 900000
-          fig = fw._trend_chart(sample)
-          assert len(fig.data) == 3
-          fig2 = fw._category_chart(sample)
-          assert len(fig2.data) == 1
-          print('Finance calculations and charts verified.')
+          assert len(fw._trend_chart(sample).data) == 3
+          assert len(fw._category_chart(sample).data) == 1
+          expected = {'cobranza','sii','marketing','inventario','conciliacion','legal','ia'}
+          assert set(wm.RENDERERS) == expected
+          print('Finance calculations and private module registry verified.')
           PY
 
       - name: Streamlit runtime smoke test
@@ -119,21 +109,20 @@ jobs:
               return True
 
           failed = []
-
-          print('Running app.py...')
           at = AppTest.from_file('app.py', default_timeout=20).run()
           if not assert_clean(at, 'app.py'):
               failed.append('app.py')
 
-          print('Running private finance login shell...')
-          at = AppTest.from_file('app.py', default_timeout=20)
-          at.query_params['workspace'] = 'finanzas'
-          at.run()
-          if not assert_clean(at, 'app.py?workspace=finanzas'):
-              failed.append('app.py?workspace=finanzas')
+          for workspace in ['finanzas','cobranza','sii','marketing','inventario','conciliacion','legal','ia']:
+              print(f'Running app.py?workspace={workspace}...')
+              at = AppTest.from_file('app.py', default_timeout=20)
+              at.query_params['workspace'] = workspace
+              at.run()
+              if not assert_clean(at, f'app.py?workspace={workspace}'):
+                  failed.append(f'app.py?workspace={workspace}')
 
           for module in ['cobranza','sii','marketing','inventario','conciliacion','legal','ia']:
-              print(f'Running app.py?module={module}...')
+              print(f'Running public app.py?module={module}...')
               at = AppTest.from_file('app.py', default_timeout=20)
               at.query_params['module'] = module
               at.run()
@@ -141,12 +130,10 @@ jobs:
                   failed.append(f'app.py?module={module}')
 
           for target in sorted(Path('pages').glob('*.py')):
-              print(f'Running {target}...')
               at = AppTest.from_file(str(target), default_timeout=20).run()
               if not assert_clean(at, str(target)):
                   failed.append(str(target))
 
-          print('Running admin.py login shell...')
           at = AppTest.from_file('admin.py', default_timeout=20).run()
           if not assert_clean(at, 'admin.py'):
               failed.append('admin.py')
