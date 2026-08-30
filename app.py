@@ -29,9 +29,9 @@ ICONS = {
 WORKSPACES = [
     ("finanzas", "Finanzas", "chart"),
     ("cobranza", "Cobranza", "cash"),
-    ("sii", "SII / Impuestos", "invoice"),
-    ("inventario", "Inventario", "box"),
     ("conciliacion", "Conciliación", "bank"),
+    ("inventario", "Inventario", "box"),
+    ("sii", "SII / Impuestos", "invoice"),
     ("marketing", "Marketing", "megaphone"),
     ("legal", "Legal", "shield"),
     ("ia", "Asistente IA", "ai"),
@@ -63,10 +63,17 @@ def _brand() -> None:
     st.sidebar.markdown(
         """
         <div class="cp-brand">
-          <div class="cp-brand-mark">CP</div>
+          <div class="cp-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 28 28" width="22" height="22" fill="none">
+              <rect x="4" y="14" width="4" height="8" rx="2" fill="currentColor" opacity=".72"/>
+              <rect x="12" y="8" width="4" height="14" rx="2" fill="currentColor" opacity=".88"/>
+              <rect x="20" y="4" width="4" height="18" rx="2" fill="currentColor"/>
+              <path d="M5 9.5 12.5 5l6 2.6 5.5-4.1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
           <div>
             <div class="cp-brand-title">Control Pyme</div>
-            <div class="cp-brand-sub">Control financiero</div>
+            <div class="cp-brand-sub">Business control</div>
           </div>
         </div>
         """,
@@ -96,36 +103,57 @@ def _section(label: str, *, secondary: bool = False) -> None:
 
 def _public_sidebar(start: str = "", module: str = "") -> None:
     _brand()
-    _nav_link("Entrar a mi negocio", _workspace_url(), "login", cta=True)
-    _section("Principal")
+    _nav_link("Abrir mi negocio", _workspace_url(), "login", cta=True)
+
+    _section("Descubrir")
     _nav_link("Inicio", _public_url(), "home", active=not start and not module)
     _nav_link("Diagnóstico", _public_url("diagnostico"), "spark", active=start == "diagnostico")
-    _nav_link("Finanzas", _public_url("finanzas"), "chart", active=start == "finanzas")
+    _nav_link("Vista financiera", _public_url("finanzas"), "chart", active=start == "finanzas")
+
+    _section("Áreas")
     _nav_link("Cobranza", _module_url("cobranza"), "cash", active=module == "cobranza")
-    _nav_link("Conciliación bancaria", _module_url("conciliacion"), "bank", active=module == "conciliacion")
-    _section("Más módulos", secondary=True)
-    _nav_link("SII", _module_url("sii"), "invoice", active=module == "sii", secondary=True)
-    _nav_link("Inventario", _module_url("inventario"), "box", active=module == "inventario", secondary=True)
+    _nav_link("Conciliación", _module_url("conciliacion"), "bank", active=module == "conciliacion")
+    _nav_link("Inventario", _module_url("inventario"), "box", active=module == "inventario")
+
+    _section("Más", secondary=True)
+    _nav_link("SII / Impuestos", _module_url("sii"), "invoice", active=module == "sii", secondary=True)
     _nav_link("Marketing", _module_url("marketing"), "megaphone", active=module == "marketing", secondary=True)
     _nav_link("Legal", _module_url("legal"), "shield", active=module == "legal", secondary=True)
     _nav_link("Asistente IA", _module_url("ia"), "ai", active=module == "ia", secondary=True)
     _nav_link("Todos los módulos", _public_url("modulos"), "chart", active=start == "modulos", secondary=True)
-    st.sidebar.markdown('<div class="cp-sidebar-note">Beta pública · los módulos demo usan datos ficticios.</div>', unsafe_allow_html=True)
+
+    st.sidebar.markdown(
+        '<div class="cp-sidebar-note"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#6E79FF;margin-right:6px"></span>Beta pública · datos demo</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def _workspace_sidebar(active_workspace: str) -> None:
     _brand()
     auth = st.session_state.get("finance_auth") or {}
     email = str((auth.get("user") or {}).get("email") or "")
+
     _section("Mi negocio")
     for slug, label, icon in WORKSPACES:
         _nav_link(label, _workspace_url(slug), icon, active=active_workspace == slug)
+
     st.sidebar.divider()
     _nav_link("Volver a la demo", _public_url(), "arrow")
+
     if email:
-        st.sidebar.markdown(f'<div class="cp-sidebar-note">Sesión: {html.escape(email)}<br>Tus datos están aislados por usuario.</div>', unsafe_allow_html=True)
+        initial = html.escape(email[:1].upper())
+        safe_email = html.escape(email)
+        st.sidebar.markdown(
+            f"""
+            <div style="margin:14px 5px 2px;padding:11px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025);display:flex;align-items:center;gap:9px">
+              <div style="width:29px;height:29px;border-radius:9px;background:rgba(111,123,255,.16);color:#AAB2FF;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:760">{initial}</div>
+              <div style="min-width:0"><div style="font-size:.68rem;color:#778297">Sesión activa</div><div style="font-size:.72rem;color:#B7C0CF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:174px">{safe_email}</div></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     else:
-        st.sidebar.markdown('<div class="cp-sidebar-note">Inicia sesión para acceder a tus datos privados.</div>', unsafe_allow_html=True)
+        st.sidebar.markdown('<div class="cp-sidebar-note">Inicia sesión para trabajar con tus datos reales.</div>', unsafe_allow_html=True)
 
 
 workspace = str(st.query_params.get("workspace", "")).strip().lower()
