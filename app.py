@@ -128,14 +128,64 @@ def _public_sidebar(start: str = "", module: str = "") -> None:
     )
 
 
+def _switch_workspace(area: str) -> None:
+    """Switch private modules without a browser navigation, preserving session_state/auth."""
+    for key in ("module", "start"):
+        if key in st.query_params:
+            del st.query_params[key]
+    st.query_params["workspace"] = area
+    st.rerun()
+
+
+def _workspace_nav_button(label: str, area: str, *, active: bool = False) -> None:
+    if st.sidebar.button(
+        label,
+        key=f"workspace_nav_{area}",
+        type="primary" if active else "secondary",
+        width="stretch",
+    ):
+        _switch_workspace(area)
+
+
 def _workspace_sidebar(active_workspace: str) -> None:
     _brand()
     auth = st.session_state.get("finance_auth") or {}
     email = str((auth.get("user") or {}).get("email") or "")
 
+    # Private navigation uses Streamlit buttons instead of HTML anchors. This keeps
+    # the same websocket/session when moving between modules, so login state persists.
+    st.sidebar.markdown(
+        """
+        <style>
+        [data-testid="stSidebar"] div[class*="st-key-workspace_nav_"]{margin:2px 0!important;}
+        [data-testid="stSidebar"] div[class*="st-key-workspace_nav_"] button{
+          width:100%!important;min-height:43px!important;justify-content:flex-start!important;text-align:left!important;
+          padding:9px 10px!important;border-radius:11px!important;border:1px solid transparent!important;
+          background:transparent!important;color:#B9C1D0!important;box-shadow:none!important;
+          font-size:.865rem!important;font-weight:570!important;line-height:1.18!important;
+          transition:background .16s ease,border-color .16s ease,color .16s ease,transform .16s ease!important;
+        }
+        [data-testid="stSidebar"] div[class*="st-key-workspace_nav_"] button:hover{
+          background:rgba(255,255,255,.055)!important;color:#F8FAFC!important;transform:translateX(1px)!important;
+          border-color:transparent!important;box-shadow:none!important;
+        }
+        [data-testid="stSidebar"] div[class*="st-key-workspace_nav_"] button[kind="primary"]{
+          color:#fff!important;font-weight:680!important;
+          background:linear-gradient(90deg,rgba(79,93,255,.22),rgba(79,93,255,.10))!important;
+          border-color:rgba(121,132,255,.20)!important;box-shadow:inset 3px 0 0 #6E79FF!important;
+        }
+        [data-testid="stSidebar"] div[class*="st-key-workspace_nav_"] button[kind="primary"]:hover{
+          background:linear-gradient(90deg,rgba(79,93,255,.28),rgba(79,93,255,.13))!important;
+          border-color:rgba(121,132,255,.24)!important;transform:none!important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     _section("Mi negocio")
-    for slug, label, icon in WORKSPACES:
-        _nav_link(label, _workspace_url(slug), icon, active=active_workspace == slug)
+    for slug, label, _icon in WORKSPACES:
+        _workspace_nav_button(label, slug, active=active_workspace == slug)
 
     st.sidebar.divider()
     _nav_link("Volver a la demo", _public_url(), "arrow")
